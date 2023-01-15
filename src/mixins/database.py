@@ -46,8 +46,8 @@ class DataBaseProcessMixin:
         exist_query = """select exists
                         (select code from emotes where code=%s);"""
         cursor.execute(exist_query, (emote["code"],))
-
-        if not cursor.fetchone():
+        emote_exists = cursor.fetchone()[0]
+        if not emote_exists:
             insert_query = """insert into emotes
                             (code, url, provider, set)
                             values (%s, %s, %s, %s);"""
@@ -81,8 +81,8 @@ class DataBaseProcessMixin:
             """create table if not exists chat_messages(
             id serial primary key,
             username varchar(255),
-            message text,
-            date timestamp default current_date)"""
+            message varchar(600),
+            date timestamptz default (now() at time zone 'Iran'))"""
         )
 
     @connect_database
@@ -92,7 +92,7 @@ class DataBaseProcessMixin:
             id serial primary key,
             code varchar(255),
             url varchar(255),
-            provider varchar(255),
-            set varchar(255),
-            date timestamp default current_date)"""
+            provider varchar(10),
+            set varchar(10),
+            date timestamptz default (now() at time zone 'Iran'))"""
         )
