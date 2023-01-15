@@ -1,5 +1,5 @@
-from utils.mixins import CommonBot, AdvancedContext
 from twitchio.ext.commands import cooldown, command, Bucket
+from .common import CommonBot, AdvancedContext
 
 
 class Moderator(CommonBot):
@@ -7,6 +7,8 @@ class Moderator(CommonBot):
         if message.echo:
             return
         context = await self.get_context(message)
+        await context.send(message.content)
+        await context.channel.send(message.content)
 
         await self.handle_commands(message)
         await self.check_forbidden(context)
@@ -14,12 +16,11 @@ class Moderator(CommonBot):
 
     async def check_forbidden(self, context: AdvancedContext):
         if context.has_forbidden_word:
-            print("Not OK")
-        return
+            await context.send(f"delete")
 
     async def check_trigger(self, context: AdvancedContext):
         if context.has_trigger_word:
-            print("docLeave")
+            await context.send(f"timeout")
         return
 
     @cooldown(rate=5, per=60, bucket=Bucket.channel)

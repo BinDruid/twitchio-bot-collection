@@ -1,5 +1,5 @@
 import sys
-from utils.exec_command import ExeCommandLine
+from src.utils.exec_command import ExeCommandLine
 
 
 def main():
