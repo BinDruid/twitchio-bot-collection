@@ -2,7 +2,7 @@ from twitchio.ext.commands import Context
 from configs.words_lookup import blacklist_words, trigger_words
 
 
-class TextProcessMixin:
+class ContextMixin:
     @property
     def tokens(self):
         return self.message.content.lower().split(" ")
@@ -26,5 +26,5 @@ class TextProcessMixin:
         return "custom-reward-id" in self.message.tags
 
 
-class AdvancedContext(TextProcessMixin, Context):
+class AdvancedContext(ContextMixin, Context):
     pass

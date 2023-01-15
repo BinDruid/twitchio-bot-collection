@@ -7,8 +7,8 @@ class Moderator(CommonBot):
         if message.echo:
             return
         context = await self.get_context(message)
-        await context.send(message.content)
-        await context.channel.send(message.content)
+        # await context.send(message.content)
+        # await context.channel.send(message.content)
 
         await self.handle_commands(message)
         await self.check_forbidden(context)

@@ -1,6 +1,6 @@
 import os
 from twitchio.ext.commands import Bot
-from src.mixins.text_process import AdvancedContext
+from src.mixins.context import AdvancedContext
 
 
 class CommonBot(Bot):
