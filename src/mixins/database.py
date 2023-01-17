@@ -2,6 +2,7 @@ import os
 import psycopg2
 from .text import TextProcessMixin
 from .fetch import FetchApiMixin
+from datetime import datetime
 
 
 class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
@@ -11,6 +12,7 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
     updating and inserting new emotes and chat messages
     """
 
+    emotes_ready = False
     _conn_string = os.environ["DB_URL"]
 
     def connect_database(func):
@@ -28,16 +30,10 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
             func(*args, **kwargs)
             conn.commit()
             cursor.close()
-            conn.close()
 
         return wrapper
 
     async def init_database_routine(self):
-        self._create_chats_table()
-        self._create_emotes_table()
-        self._create_message_emojis_table()
-        self._create_message_emotes_table()
-        self._create_message_mentions_table()
         self._fetch_emotes()
         self._update_emotes()
         self._make_emote_list()
@@ -62,8 +58,8 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
         emote_exists = cursor.fetchone()[0]
         if not emote_exists:
             insert_query = """insert into emotes
-                            (code, url, provider, set)
-                            values (%s, %s, %s, %s);"""
+                            (code, url, provider, set, date)
+                            values (%s, %s, %s, %s, %s);"""
             cursor.execute(
                 insert_query,
                 (
@@ -71,6 +67,7 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
                     emote["urls"][0]["url"],
                     self._emotes_providers[emote["provider"]],
                     set,
+                    datetime.now(),
                 ),
             )
             print(f"New emote added: {emote['code']}")
@@ -78,8 +75,8 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
     @connect_database
     def insert_into_chats_table(self, message, author, cursor):
         insert_query = """insert into chats
-                        (message, username, user_id, is_sub, is_mod, is_vip)
-                        values (%s, %s, %s, %s, %s, %s) returning id;"""
+                        (message, username, user_id, is_sub, is_mod, is_vip, date)
+                        values (%s, %s, %s, %s, %s, %s, %s) returning id;"""
         cursor.execute(
             insert_query,
             (
@@ -89,6 +86,7 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
                 author.is_subscriber,
                 author.is_mod,
                 author.is_vip,
+                datetime.now(),
             ),
         )
         message_id = cursor.fetchone()[0]
@@ -169,7 +167,7 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
         # emote[1] is refrencing to code column in emotes table
         # emote[0] is refrencing to id column in emotes table
         self._emotes = {emote[1]: emote[0] for emote in emotes}
-        print("List all available emotes")
+        self.emotes_ready = True
 
     def _insert_into_message_emotes(self, emotes_count, message_id, cursor):
         insert_query = """insert into message_emotes

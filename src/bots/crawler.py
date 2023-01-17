@@ -15,16 +15,16 @@ class Crawler(DataBaseProcessMixin, CommonBot):
         return None
 
     async def event_message(self, message):
-        if message.echo:
+        if message.echo or not self.emotes_ready:
             return
         context = await self.get_context(message)
 
         if context.is_reward_redemption:
             return
 
-        self.save_context(context)
+        await self.save_context(context)
 
-    def save_context(self, context: AdvancedContext):
+    async def save_context(self, context: AdvancedContext):
         message = context.message.content
         author = context.author
         self.insert_into_chats_table(message, author)
