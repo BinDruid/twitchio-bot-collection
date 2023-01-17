@@ -1,19 +1,25 @@
 import os
-import emoji
 import psycopg2
-import requests
+from .text import TextProcessMixin
+from .fetch import FetchApiMixin
 
 
-class DataBaseProcessMixin:
-    _emotes = None
+class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
+    """
+    Mixin to handle database operations including
+    creating initial tables, consuming emotes api and then
+    updating and inserting new emotes and chat messages
+    """
+
     _conn_string = os.environ["DB_URL"]
-    _emotes_providers = ["twitch", "7tv", "bttv", "ffz"]
-    _channel_emotes_endpoint = f"https://emotes.adamcy.pl/v1/channel/{os.environ['CHANNEL']}/emotes/twitch.7tv.bttv.ffz"
-    _global_emotes_endpoint = (
-        "https://emotes.adamcy.pl/v1/global/emotes/twitch.7tv.bttv.ffz"
-    )
 
     def connect_database(func):
+        """
+        A decorator which wraps any database query excution with
+        a creat, commit and close connection operation. Also passes
+        a cursor to wrapped method.
+        """
+
         def wrapper(*args, **kwargs):
             self = args[0]
             conn = psycopg2.connect(self._conn_string)
@@ -32,20 +38,21 @@ class DataBaseProcessMixin:
         self._create_message_emojis_table()
         self._create_message_emotes_table()
         self._create_message_mentions_table()
+        self._fetch_emotes()
         self._update_emotes()
         self._make_emote_list()
 
     def _update_emotes(self):
+        """
+        Checks if a new emote (either global or channel) has been added to channel
+        In that case the emote will get inserted to emotes tabale
+        """
         print("Updating database for global emotes")
-        self._fetch_emotes(self._global_emotes_endpoint, "global")
+        for emote in self._global_emtoes:
+            self._insert_into_emotes_table(emote, "global")
         print("Updating database for channel emotes")
-        self._fetch_emotes(self._channel_emotes_endpoint, "channel")
-
-    def _fetch_emotes(self, url, set):
-        response = requests.get(url)
-        data = response.json()
-        for emote in data:
-            self._insert_into_emotes_table(emote, set)
+        for emote in self._channel_emtoes:
+            self._insert_into_emotes_table(emote, "channel")
 
     @connect_database
     def _insert_into_emotes_table(self, emote, set, cursor):
@@ -69,12 +76,7 @@ class DataBaseProcessMixin:
             print(f"New emote added: {emote['code']}")
 
     @connect_database
-    def insert_into_chats_table(self, context, cursor):
-        message = context.message.content
-        author = context.author
-        emotes_count = self._count_emotes(message)
-        emojis_count = self._count_emojis(message)
-        mentions_count = self._count_mentions(message)
+    def insert_into_chats_table(self, message, author, cursor):
         insert_query = """insert into chats
                         (message, username, user_id, is_sub, is_mod, is_vip)
                         values (%s, %s, %s, %s, %s, %s) returning id;"""
@@ -90,31 +92,15 @@ class DataBaseProcessMixin:
             ),
         )
         message_id = cursor.fetchone()[0]
-        emote_insert_query = """insert into message_emotes
-                            (message_id, emote_id, count)
-                            values (%s, %s, %s);"""
-        for emote in emotes_count:
-            cursor.execute(
-                emote_insert_query,
-                (message_id, self._emotes[emote], emotes_count[emote]),
-            )
-        emoji_insert_query = """insert into message_emojis
-                            (message_id, emoji, count)
-                            values (%s, %s, %s);"""
-        for emj in emojis_count:
-            cursor.execute(
-                emoji_insert_query,
-                (message_id, emj, emojis_count[emj]),
-            )
 
-        mention_insert_query = """insert into message_mentions
-                            (message_id, mention, count)
-                            values (%s, %s, %s);"""
-        for mention in mentions_count:
-            cursor.execute(
-                mention_insert_query,
-                (message_id, mention, mentions_count[mention]),
-            )
+        emotes_count = self._count_emotes(message)
+        self._insert_into_message_emotes(emotes_count, message_id, cursor)
+
+        mentions_count = self._count_mentions(message)
+        self._insert_into_message_mentions(mentions_count, message_id, cursor)
+
+        emojis_count = self._count_emojis(message)
+        self._insert_into_message_emojis(emojis_count, message_id, cursor)
 
     @connect_database
     def _create_chats_table(self, cursor):
@@ -174,22 +160,43 @@ class DataBaseProcessMixin:
 
     @connect_database
     def _make_emote_list(self, cursor):
+        """
+        Creats a dictionary from all emotes in database which
+        keys are representing emote code and value is id of the emote
+        """
         cursor.execute("""select id, code from emotes;""")
         emotes = cursor.fetchall()
-        # emote[1] is emote code
-        # emote[0] is id of the emote
+        # emote[1] is refrencing to code column in emotes table
+        # emote[0] is refrencing to id column in emotes table
         self._emotes = {emote[1]: emote[0] for emote in emotes}
+        print("List all available emotes")
 
-    def _count_emojis(self, message):
-        emojis = [word for word in message.split(" ") if emoji.is_emoji(word)]
-        return {emj: emojis.count(emj) for emj in set(emojis)}
+    def _insert_into_message_emotes(self, emotes_count, message_id, cursor):
+        insert_query = """insert into message_emotes
+                            (message_id, emote_id, count)
+                            values (%s, %s, %s);"""
+        for emote in emotes_count:
+            cursor.execute(
+                insert_query,
+                (message_id, self._emotes[emote], emotes_count[emote]),
+            )
 
-    def _count_emotes(self, message):
-        emotes = [word for word in message.split(" ") if word in self._emotes]
-        return {emote: emotes.count(emote) for emote in set(emotes)}
+    def _insert_into_message_emojis(self, emojis_count, message_id, cursor):
+        insert_query = """insert into message_emojis
+                            (message_id, emoji, count)
+                            values (%s, %s, %s);"""
+        for emoji in emojis_count:
+            cursor.execute(
+                insert_query,
+                (message_id, emoji, emojis_count[emoji]),
+            )
 
-    def _count_mentions(self, message):
-        mentions = [
-            word.replace(",", "") for word in message.split(" ") if word.startswith("@")
-        ]
-        return {mention: mentions.count(mention) for mention in set(mentions)}
+    def _insert_into_message_mentions(self, mentions_count, message_id, cursor):
+        insert_query = """insert into message_mentions
+                            (message_id, mention, count)
+                            values (%s, %s, %s);"""
+        for mention in mentions_count:
+            cursor.execute(
+                insert_query,
+                (message_id, mention, mentions_count[mention]),
+            )

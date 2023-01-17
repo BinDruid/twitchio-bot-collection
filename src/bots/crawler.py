@@ -25,5 +25,7 @@ class Crawler(DataBaseProcessMixin, CommonBot):
         self.save_context(context)
 
     def save_context(self, context: AdvancedContext):
-        self.insert_into_chats_table(context)
-        print(f"{context.author['name']}: {context.message.content}")
+        message = context.message.content
+        author = context.author
+        self.insert_into_chats_table(message, author)
+        print(f"{author.name}: {message}")
