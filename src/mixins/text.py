@@ -12,7 +12,7 @@ class TextProcessMixin:
     def _count_emojis(self, message):
         """
         Tokenize the chat message and returns a dictionary which
-        keys are emojis and valuse are count of occurrence for
+        keys are emojis and values are count of occurrence for
         each emoji in the chat message
         """
         emojis = [word for word in message.split(" ") if is_emoji(word)]
@@ -21,7 +21,7 @@ class TextProcessMixin:
     def _count_emotes(self, message):
         """
         Tokenize the chat message and returns a dictionary which
-        keys are emotes and valuse are count of occurrence for
+        keys are emotes and values are count of occurrence for
         each emote in the chat message
         """
         emotes = [word for word in message.split(" ") if word in self._emotes]
