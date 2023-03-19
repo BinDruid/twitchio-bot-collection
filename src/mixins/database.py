@@ -1,8 +1,8 @@
 import os
 import psycopg2
+from datetime import datetime
 from .text import TextProcessMixin
 from .fetch import FetchApiMixin
-from datetime import datetime
 
 
 class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
@@ -17,8 +17,8 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
 
     def connect_database(func):
         """
-        A decorator which wraps any database query excution with
-        a creat, commit and close connection operation. Also passes
+        A decorator which wraps any database query execution with
+        a create, commit and close connection operation. Also passes
         a cursor to wrapped method.
         """
 
@@ -44,10 +44,10 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
         In that case the emote will get inserted to emotes tabale
         """
         print("Updating database for global emotes")
-        for emote in self._global_emtoes:
+        for emote in self._global_emotes:
             self._insert_into_emotes_table(emote, "global")
         print("Updating database for channel emotes")
-        for emote in self._channel_emtoes:
+        for emote in self._channel_emotes:
             self._insert_into_emotes_table(emote, "channel")
 
     @connect_database
@@ -159,13 +159,13 @@ class DataBaseProcessMixin(FetchApiMixin, TextProcessMixin):
     @connect_database
     def _make_emote_list(self, cursor):
         """
-        Creats a dictionary from all emotes in database which
+        Create a dictionary from all emotes in database which
         keys are representing emote code and value is id of the emote
         """
         cursor.execute("""select id, code from emotes;""")
         emotes = cursor.fetchall()
-        # emote[1] is refrencing to code column in emotes table
-        # emote[0] is refrencing to id column in emotes table
+        # emote[1] is referencing to code column in emotes table
+        # emote[0] is referencing to id column in emotes table
         self._emotes = {emote[1]: emote[0] for emote in emotes}
         self.emotes_ready = True
 

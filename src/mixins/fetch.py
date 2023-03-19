@@ -23,4 +23,4 @@ class FetchApiMixin:
     def _get_emotes(self, url, set):
         response = requests.get(url)
         emotes_json = response.json()
-        setattr(self, f"_{set}_emtoes", emotes_json)
+        setattr(self, f"_{set}_emotes", emotes_json)
