@@ -16,10 +16,7 @@ class ContextMixin:
         return self._check_words_in(trigger_words)
 
     def _check_words_in(self, word_list):
-        for word in self.tokens:
-            if word in word_list:
-                return True
-        return False
+        return any(word in word_list for word in self.tokens)
 
     @property
     def is_reward_redemption(self):
